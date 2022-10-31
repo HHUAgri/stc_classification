@@ -8,13 +8,15 @@ Date: 2021-09-16
 """
 import time
 import argparse
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from stc_classifier import STCClassifier, STCModel
 from dataloader import STCData
 from utils import init_dl_program
+
+seed_everything(42)
 
 
 def parse_args():
@@ -75,7 +77,7 @@ def main():
     args_loss = 'ce'
     dataset = 'dijon'
 
-    device = init_dl_program(args_gpu, seed=args_seed)
+    # device = init_dl_program(args_gpu, seed=args_seed)
     #################################################################
     # Declaration of data loader
     stc_data = STCData(dataset, batch_size=args_batch_size, num_workers=args_num_workers)
@@ -83,14 +85,14 @@ def main():
     #################################################################
     # Declaration of network
     stc_classifier = STCClassifier(args_input_channels, args_num_timestamps, args_num_classes)
-    model = STCModel(stc_classifier, optimizer=args_optimizer, lr=args_lr, loss=args_loss, device=device)
+    model = STCModel(stc_classifier, optimizer=args_optimizer, lr=args_lr, loss=args_loss)
 
     #################################################################
     # Declaration of trainer
     checkpoint_callback = ModelCheckpoint(dirpath='checkpoint', filename='cp-{epoch:02d}-{val_loss:.2f}', monitor='val_loss')
     early_stop_callback = EarlyStopping(monitor='val_loss')
 
-    trainer = Trainer(accelerator="gpu", max_epochs=args_epochs, gradient_clip_val=None, callbacks=[checkpoint_callback, early_stop_callback])
+    trainer = Trainer(accelerator="gpu", gpus=1, max_epochs=args_epochs, gradient_clip_val=None, callbacks=[checkpoint_callback, early_stop_callback])
     trainer.fit(model, stc_data)
 
     #################################################################

@@ -36,8 +36,7 @@ class STCModel(LightningModule):
     def __init__(self, model,
                  optimizer="adam",
                  lr=0.0001,
-                 loss='ce',
-                 device='cuda:0'
+                 loss='ce'
                  ):
         super().__init__()
         self.model = model.to(self.device)
@@ -48,41 +47,50 @@ class STCModel(LightningModule):
         self.accuracy = torchmetrics.Accuracy()
 
     def forward(self, x):
-        x = x.to(self.device)
         return self.model(x)
 
     def training_step(self, batch, batch_idx):
-
         feat, label = batch["feat"], batch["label"]
-        label_pred = self.model(feat)
+        label_pred = self.forward(feat)
 
+        # logs metrics for each training_step,
+        # and the average across the epoch, to the progress bar and logger
         loss = self.criterion(label_pred, label)
-        self.log("loss", loss, prog_bar=True)
+        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         # Here, can record many metrics
         pred = torch.argmax(label_pred, dim=1)
         acc = self.accuracy(pred, label)
-        self.log("acc", acc, prog_bar=True)
+        self.log("train_acc", acc, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         return loss
 
     def validation_step(self, batch, batch_idx):
-
         feat, label = batch["feat"], batch["label"]
-        label_pred = self.model(feat)
+        label_pred = self.forward(feat)
 
         loss = self.criterion(label_pred, label)
-        self.log("val_loss", loss, prog_bar=True)
+        self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         # Here, can record many metrics
         pred = torch.argmax(label_pred, dim=1)
         acc = self.accuracy(pred, label)
-        self.log("val_acc", acc, prog_bar=True)
-        # return loss
+        self.log("val_acc", acc, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+
+        return loss
+
+    def test_step(self, batch, batch_idx):
+        feat, label = batch["feat"], batch["label"]
+        label_pred = self.forward(feat)
+
+        loss = self.criterion(label_pred, label)
+        self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+
+        return loss
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         label, id, feat = batch["label"], batch["id"], batch["feat"]
-        return self(feat)
+        return self.forward(feat)
 
     def configure_optimizers(self):
         supported_optimizer = {
