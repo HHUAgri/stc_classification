@@ -10,8 +10,8 @@ Date: 2021-09-16
 import torch
 import torch.nn as nn
 
-from tcn import TemporalConvNet
-from dsn import DenseSpatialNet
+from .tcn import TemporalConvNet
+from .dsn import DenseSpatialNet
 
 
 class SpatialTemporalConvNet(nn.Module):

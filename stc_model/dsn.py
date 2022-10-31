@@ -10,7 +10,7 @@ Date: 2021-09-16
 import torch
 import torch.nn as nn
 
-from st_attention import ChannelSpatialSELayer
+from .st_attention import ChannelSpatialSELayer
 
 
 class SpatialEmbedding(nn.Module):

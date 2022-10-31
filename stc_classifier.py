@@ -36,20 +36,19 @@ class STCModel(LightningModule):
     def __init__(self, model,
                  optimizer="adam",
                  lr=0.0001,
-                 loss='ce'
+                 loss='ce',
+                 device='cuda:0'
                  ):
         super().__init__()
-
         self.model = model.to(self.device)
 
         self.optimizer = optimizer
         self.lr = lr
-
         self.criterion = STCLosses().build_loss(loss)
-
         self.accuracy = torchmetrics.Accuracy()
 
     def forward(self, x):
+        x = x.to(self.device)
         return self.model(x)
 
     def training_step(self, batch, batch_idx):
