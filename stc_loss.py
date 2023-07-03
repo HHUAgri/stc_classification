@@ -32,7 +32,8 @@ class STCLosses(object):
         Choices: ['bce' or 'nll']
         """
         if mode == 'ce':
-            return F.cross_entropy
+            # return F.cross_entropy
+            return nn.CrossEntropyLoss(weight=self.weight)
         elif mode == 'nll':
             return F.nll_loss
         elif mode == 'focal':

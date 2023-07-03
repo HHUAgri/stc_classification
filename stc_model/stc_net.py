@@ -19,15 +19,14 @@ class SpatialTemporalConvNet(nn.Module):
         super(SpatialTemporalConvNet, self).__init__()
 
         st_channel = 256
-        tcn_channels = [64, 32, 32, 16, 8]
-        self.dsn_layer = DenseSpatialNet(n_inputs, st_channel)
+        tcn_channels = [64, 32, 32, 16]
+        self.dsn_layer = DenseSpatialNet(n_inputs, st_channel, dropout=0)
         self.tcn_layer = TemporalConvNet(st_channel, num_channels=tcn_channels)
-
         self.dense_layer = nn.Sequential(
-            nn.Linear(tcn_channels[-1]*n_timestep, 64),
+            nn.Linear(tcn_channels[-1]*24, 32),
             nn.ReLU(),
-            nn.Dropout(),
-            nn.Linear(64, n_outputs)
+            nn.Dropout(p=0.02),
+            nn.Linear(32, n_outputs)
         )
 
     def forward(self, x):
@@ -40,6 +39,7 @@ class SpatialTemporalConvNet(nn.Module):
 
         out = self.tcn_layer(out)
         out = torch.flatten(out, 1, -1)
+        # out = out[:, :, -1]
 
         out = self.dense_layer(out)
         return out
@@ -55,14 +55,14 @@ def check_parameters(net):
 
 def test_stc():
     # batch_size x time_step x channels x h x w
-    x = torch.randn(9, 12, 4, 32, 32)
-    stcn_net = SpatialTemporalConvNet(4, 8, 12)
+    x = torch.randn(9, 24, 10, 32, 32)
+    stcn_net = SpatialTemporalConvNet(10, 13, 24)
     print(stcn_net)
 
     # class
     y = stcn_net(x)
     print(str(check_parameters(stcn_net))+' Mb')
-    print(y)
+    print(y.size(), y)
 
 
 if __name__ == "__main__":

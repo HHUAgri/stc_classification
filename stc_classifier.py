@@ -33,17 +33,15 @@ class STCClassifier(nn.Module):
 
 
 class STCModel(LightningModule):
-    def __init__(self, model,
-                 optimizer="adam",
-                 lr=0.0001,
-                 loss='ce'
-                 ):
+    def __init__(self, model, optimizer="adam", lr=0.00001, loss='ce', class_weight=None):
         super().__init__()
-        self.model = model.to(self.device)
+        # self.model = model.to(self.device)
+        self.model = model
+        self.class_weight = torch.FloatTensor(class_weight)
 
         self.optimizer = optimizer
         self.lr = lr
-        self.criterion = STCLosses().build_loss(loss)
+        self.criterion = STCLosses(weight=self.class_weight).build_loss(loss)
         self.accuracy = torchmetrics.Accuracy()
 
     def forward(self, x):
@@ -56,28 +54,54 @@ class STCModel(LightningModule):
         # logs metrics for each training_step,
         # and the average across the epoch, to the progress bar and logger
         loss = self.criterion(label_pred, label)
-        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('train_loss', loss, on_epoch=True, prog_bar=True, logger=True)
 
         # Here, can record many metrics
         pred = torch.argmax(label_pred, dim=1)
         acc = self.accuracy(pred, label)
-        self.log("train_acc", acc, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log("train_acc", acc, on_epoch=True, prog_bar=True, logger=True)
 
-        return loss
+        prec, recall, f1 = torchmetrics.functional.precision(pred, label), torchmetrics.functional.recall(pred, label), torchmetrics.functional.f1_score(pred, label)
+
+        return {"loss": loss, "acc": acc, "prec": prec, "recall": recall, "f1": f1}
+
+    # def training_epoch_end(self, outputs):
+    #     loss = 0.
+    #     acc = 0.
+    #     for out in outputs:
+    #         loss += out["loss"].cpu().detach().item()
+    #         acc += out["acc"].cpu().detach().item()
+    #     loss /= len(outputs)
+    #     acc /= len(outputs)
+    #
+    #     print("### Training LOSS: {}; ACC: {}".format(loss, acc))
 
     def validation_step(self, batch, batch_idx):
         feat, label = batch["feat"], batch["label"]
         label_pred = self.forward(feat)
 
         loss = self.criterion(label_pred, label)
-        self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log("val_loss", loss, on_epoch=True, prog_bar=True, logger=True)
 
         # Here, can record many metrics
         pred = torch.argmax(label_pred, dim=1)
         acc = self.accuracy(pred, label)
-        self.log("val_acc", acc, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log("val_acc", acc, on_epoch=True, prog_bar=True, logger=True)
 
-        return loss
+        prec, recall, f1 = torchmetrics.functional.precision(pred, label), torchmetrics.functional.recall(pred, label), torchmetrics.functional.f1_score(pred, label)
+
+        return {"loss": loss, "acc": acc, "prec": prec, "recall": recall, "f1": f1}
+
+    # def validation_epoch_end(self, outputs):
+    #     loss = 0.
+    #     acc = 0.
+    #     for out in outputs:
+    #         loss += out["loss"].cpu().detach().item()
+    #         acc += out["acc"].cpu().detach().item()
+    #     loss /= len(outputs)
+    #     acc /= len(outputs)
+    #
+    #     print("### Validation LOSS: {}; ACC: {}".format(loss, acc))
 
     def test_step(self, batch, batch_idx):
         feat, label = batch["feat"], batch["label"]
@@ -104,7 +128,7 @@ class STCModel(LightningModule):
         if self.optimizer not in supported_optimizer:
             raise ValueError("Now only support optimizer {}".format(self.optimizer))
 
-        optimizer_kwargs = {'lr': self.lr, 'weight_decay': 1e-5}
+        optimizer_kwargs = {'lr': self.lr, 'weight_decay': 1e-4}
         optimizer = supported_optimizer[self.optimizer](self.model.parameters(), **optimizer_kwargs)
 
         lr_scheduler = {

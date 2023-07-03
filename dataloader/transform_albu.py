@@ -12,17 +12,21 @@ import torch
 
 
 class TransformAlb(object):
-    def __init__(self):
+    def __init__(self, probability=0.2):
         self.aug = A.Compose([
-            A.HorizontalFlip(p=0.5),
-            A.VerticalFlip(p=0.5),
-            A.RandomRotate90(always_apply=False, p=0.5),
-            # A.ShiftScaleRotate(p=0.5),
-            # A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, interpolation=1, border_mode=4, value=None,
-            #                    mask_value=None, always_apply=False, approximate=False, p=0.5)
+            A.HorizontalFlip(p=probability),
+            A.VerticalFlip(p=probability),
+            A.Transpose(),
+            A.RandomRotate90(always_apply=False, p=probability),
+            # A.ShiftScaleRotate(p=probability),
+            A.RandomResizedCrop(32, 32, p=probability),
+            A.GridDistortion(),
+            A.ElasticTransform(),
+            A.RandomGridShuffle()
         ])
 
     def __call__(self, feat):
-        augmented = self.aug(feat=feat)
-        augmented_feat = augmented['feat']
-        return augmented_feat
+        feat = feat.transpose((1, 2, 0))
+        augmented = self.aug(image=feat)
+        augmented_feat = augmented['image']
+        return augmented_feat.transpose((2, 0, 1))
